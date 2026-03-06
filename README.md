@@ -29,3 +29,7 @@ Navigate your dot through an endless stream of closing rings by orbiting inward,
 **Built with** vanilla HTML, CSS and JavaScript — single file, zero dependencies, zero build tools.
 
 **Created by Marzio**
+
+© 2026 Marzio. All rights reserved.
+Original game created by Marzio.
+Unauthorized copying or redistribution is prohibited.
