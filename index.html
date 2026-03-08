@@ -225,7 +225,7 @@
         .menu-controls span{ color:var(--ink3); }
 
         /* ── VICTORY ── */
-        #victory-screen{ background:#fff; color:var(--ink); display:none; z-index:800; text-align:center; padding:48px; border-top:4px solid var(--main); }
+        #victory-screen{ background:#fff; color:var(--ink); z-index:800; text-align:center; padding:48px; border-top:4px solid var(--main); }
         #victory-screen h1{ font-family:'Orbitron',monospace; letter-spacing:5px; font-size:20px; color:var(--ink); }
         .vs-msg{ font-size:12px; max-width:520px; line-height:2; margin:24px auto; color:var(--ink2); font-style:italic; border-left:2px solid var(--border2); padding-left:16px; text-align:left; }
         .vs-stat{ font-size:9px; color:var(--ink3); margin:4px 0; letter-spacing:2px; }
@@ -514,27 +514,7 @@
         <button class="btn" id="btn-shop-back" style="width:200px;">← BACK</button>
     </div>
 
-    <!-- TUTORIAL -->
-    <div id="tutorial-screen" class="ui-layer hidden">
-        <div id="tut-phase-label" style="font-size:8px;letter-spacing:4px;color:var(--ink3);margin-bottom:10px;"></div>
-        <div id="tut-instruction" style="font-family:'Orbitron',monospace;font-size:16px;letter-spacing:4px;color:var(--ink);margin-bottom:6px;text-align:center;"></div>
-        <div id="tut-sub" style="font-size:9px;letter-spacing:2px;color:var(--ink3);margin-bottom:28px;text-align:center;"></div>
-        <canvas id="tut-canvas" width="450" height="300" style="border:1px solid var(--border);display:block;"></canvas>
-        <div id="tut-hint" style="font-size:8px;letter-spacing:2px;color:var(--ink3);margin-top:14px;height:18px;text-align:center;"></div>
-        <button class="btn" id="btn-tut-skip" style="margin-top:16px;width:200px;font-size:8px;color:var(--ink3);">SKIP TRAINING</button>
-    </div>
-
-    <!-- TUTORIAL COMPLETE -->
-    <div id="tutorial-complete" class="ui-layer hidden">
-        <div style="font-size:8px;letter-spacing:4px;color:var(--ink3);margin-bottom:12px;">CALIBRATION COMPLETE</div>
-        <h1 style="font-family:'Orbitron',monospace;font-size:28px;letter-spacing:6px;color:var(--ink);margin-bottom:6px;">NEURAL LINK</h1>
-        <h1 style="font-family:'Orbitron',monospace;font-size:28px;letter-spacing:6px;color:var(--ink);margin-bottom:32px;">CALIBRATED</h1>
-        <div id="tut-complete-skin" style="font-size:9px;letter-spacing:3px;color:var(--main);margin-bottom:6px;"></div>
-        <div style="font-size:8px;letter-spacing:2px;color:var(--ink3);margin-bottom:32px;">STATUS: READY FOR EXTRACTION</div>
-        <button class="btn" id="btn-tut-begin">BEGIN EXTRACTION</button>
-        <button class="btn" id="btn-tut-menu" style="color:var(--ink3);font-size:9px;">BACK TO MENU</button>
-    </div>
-    <div id="victory-screen" class="ui-layer">
+    <div id="victory-screen" class="ui-layer hidden">
         <h1>EXTRACTION COMPLETE</h1>
         <p id="final-msg" class="vs-msg"></p>
         <div id="vs-stats"></div>
@@ -1205,11 +1185,10 @@ function pauseGame(){
 }
 function showMenu(){
     gameActive=false; paused=false; hellMode=false; lastTier=null;
-    exitTutorial();
     sdkGameplayStop();
     wrapper.classList.remove('critical-mode'); wrapper.style.transform='';
     ['game-over','duel-victory'].forEach(id=>document.getElementById(id).classList.add('hidden'));
-    document.getElementById('victory-screen').style.display='none';
+    document.getElementById('victory-screen').classList.add('hidden');
     document.getElementById('shop-screen').style.display='none';
     document.getElementById('pause-overlay').style.display='none';
     document.getElementById('hud-main').classList.add('hidden');
@@ -1495,10 +1474,8 @@ function initGame(mode){
     document.getElementById('duel-score-bar').classList.add('hidden');
 
     ['main-menu','game-over','duel-victory'].forEach(id=>document.getElementById(id).classList.add('hidden'));
-    document.getElementById('victory-screen').style.display='none';
+    document.getElementById('victory-screen').classList.add('hidden');
     document.getElementById('shop-screen').style.display='none';
-    document.getElementById('tutorial-screen').classList.add('hidden');
-    document.getElementById('tutorial-complete').classList.add('hidden');
     document.getElementById('hud-main').classList.remove('hidden');
 
     const isTouch='ontouchstart' in window||navigator.maxTouchPoints>0;
@@ -1588,7 +1565,7 @@ function triggerVictory(){
         document.querySelector('#victory-screen .btn').textContent='CLOSE NEURAL LINK';
         document.querySelector('#victory-screen div:last-child').style.color='';
     }
-    document.getElementById('victory-screen').style.display='flex';
+    document.getElementById('victory-screen').classList.remove('hidden');
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1668,276 +1645,8 @@ function _hudStyle(id, prop, val){
 }
 
 // ════════════════════════════════════════════════════════════════════
-// TUTORIAL SYSTEM
+// GAME LOOP
 // ════════════════════════════════════════════════════════════════════
-let tutActive = false, tutRafId = null;
-let tutPhase = 0, tutFrame = 0;
-let tutPlayer = null, tutRings = [], tutComplete = false;
-let tutHintTimer = 0;
-
-const TUT_PHASES = [
-    {
-        label: 'PHASE 01 — MOVEMENT',
-        instruction: 'ORBIT THE CORE',
-        sub: 'Press  A / D  to move',
-        hint: 'Keep moving — feel the orbit',
-        goal: 'move', // completes when player moves 180°
-        goalFrames: 180,
-        rings: [], // no rings — just move
-    },
-    {
-        label: 'PHASE 02 — EXTRACTION',
-        instruction: 'PASS THROUGH THE GAP',
-        sub: 'Time your position to pass inside the ring',
-        hint: 'The gap is the opening — pass through it',
-        goal: 'pass', // completes after 3 successful passes
-        goalCount: 3,
-        rings: [{ speed: 0.55, gapSize: 1.5 }], // slow, wide gap
-    },
-    {
-        label: 'PHASE 03 — ORBIT SHIFT',
-        instruction: 'SHIFT YOUR ORBIT',
-        sub: 'SPACE = inner orbit  ·  S = outer orbit',
-        hint: 'Some rings only pass on the correct orbit radius',
-        goal: 'orbit', // completes after using both orbits successfully
-        goalCount: 2,
-        rings: [
-            { speed: 0.6, gapSize: 1.3, forceRadius: 50  }, // inner only
-            { speed: 0.6, gapSize: 1.3, forceRadius: 105 }, // outer only
-        ],
-    },
-];
-
-const tutCanvas = document.getElementById('tut-canvas');
-const tutCtx    = tutCanvas ? tutCanvas.getContext('2d') : null;
-
-function startTutorial(){
-    tutActive   = true; tutPhase = 0; tutComplete = false;
-    document.getElementById('main-menu').classList.add('hidden');
-    document.getElementById('tutorial-screen').classList.remove('hidden');
-    document.getElementById('tutorial-complete').classList.add('hidden');
-    stopMenuAnim(); initAudio(); resumeAudio();
-    loadTutPhase(0);
-    if(tutRafId) cancelAnimationFrame(tutRafId);
-    tutLoop();
-}
-
-function loadTutPhase(i){
-    tutFrame = 0; tutRings = []; tutHintTimer = 0;
-    const phase = TUT_PHASES[i];
-    document.getElementById('tut-phase-label').textContent  = phase.label;
-    document.getElementById('tut-instruction').textContent  = phase.instruction;
-    document.getElementById('tut-sub').textContent          = phase.sub;
-    document.getElementById('tut-hint').textContent         = '';
-
-    // Create tutorial player
-    const skin = getActiveSkinP1();
-    tutPlayer = {
-        angle: 0, vel: 0,
-        radius: CONFIG.BASE_RADIUS, targetRadius: CONFIG.BASE_RADIUS,
-        color: skin.dotColor, skin: skin,
-        passed: 0, orbitUsed: new Set(),
-        movedAngle: 0, lastAngle: 0,
-        invul: 0,
-    };
-
-    // Spawn tutorial rings
-    if(phase.rings){
-        phase.rings.forEach((cfg, idx) => {
-            tutRings.push({
-                r: 0,
-                gap: Math.PI * 0.5,
-                gapSize: cfg.gapSize,
-                speed: cfg.speed,
-                gapSpeed: 0,
-                forceRadius: cfg.forceRadius || null,
-                passed: false,
-                grace: 30,
-                idx,
-            });
-        });
-    }
-}
-
-function tutLoop(now=0){
-    if(!tutActive) return;
-    tutFrame++;
-
-    // ── CLEAR ──
-    tutCtx.fillStyle = darkMode ? '#080810' : '#f0f0eb';
-    tutCtx.fillRect(0,0,450,300);
-    if(!_lowPerf){
-        tutCtx.strokeStyle = darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)';
-        tutCtx.lineWidth=0.5;
-        for(let gx=0;gx<=450;gx+=30){ tutCtx.beginPath(); tutCtx.moveTo(gx,0); tutCtx.lineTo(gx,300); tutCtx.stroke(); }
-        for(let gy=0;gy<=300;gy+=30){ tutCtx.beginPath(); tutCtx.moveTo(0,gy); tutCtx.lineTo(450,gy); tutCtx.stroke(); }
-        tutCtx.lineWidth=1;
-    }
-
-    const phase = TUT_PHASES[tutPhase];
-    const cx=225, cy=150;
-
-    // ── PLAYER MOVEMENT ──
-    const accel = 0.012, friction = 0.88, maxVel = 0.045;
-    if(keys['KeyA'])  tutPlayer.vel -= accel;
-    if(keys['KeyD'])  tutPlayer.vel += accel;
-    tutPlayer.vel *= friction;
-    tutPlayer.vel  = Math.max(-maxVel, Math.min(maxVel, tutPlayer.vel));
-    tutPlayer.lastAngle = tutPlayer.angle;
-    tutPlayer.angle += tutPlayer.vel;
-
-    // Orbit shift
-    if(keys['Space'])       tutPlayer.targetRadius = CONFIG.INNER_RADIUS;
-    else if(keys['KeyS'])   tutPlayer.targetRadius = CONFIG.FAR_RADIUS;
-    else                    tutPlayer.targetRadius = CONFIG.BASE_RADIUS;
-    tutPlayer.radius += (tutPlayer.targetRadius - tutPlayer.radius) * 0.18;
-    if(tutPlayer.invul > 0) tutPlayer.invul--;
-
-    // Track movement for phase 1
-    if(tutPhase === 0){
-        tutPlayer.movedAngle += Math.abs(tutPlayer.angle - tutPlayer.lastAngle);
-    }
-
-    // ── DRAW RINGS ──
-    tutCtx.save(); tutCtx.translate(cx, cy);
-    for(let ri=0; ri<tutRings.length; ri++){
-        const o = tutRings[ri];
-        o.r += o.speed;
-        o.gap += (o.gapSpeed || 0);
-
-        // Reset only after ring fully leaves canvas
-        if(o.r > 280){
-            o.r = 0;
-            o.passed = false;
-            o.grace = 40;
-        }
-        if(o.grace > 0) o.grace--;
-
-        // Don't draw or check if still spawning
-        if(o.r < 2) continue;
-
-        let col = tutPlayer.skin?.ringColor || tutPlayer.color;
-        const alpha = 0.2 + (o.r/265)*0.8;
-
-        if(o.forceRadius === CONFIG.INNER_RADIUS) col = '#0070aa';
-        if(o.forceRadius === CONFIG.FAR_RADIUS)   col = '#660099';
-
-        tutCtx.globalAlpha = alpha;
-        tutCtx.strokeStyle = col;
-        tutCtx.lineWidth   = 5;
-        tutCtx.beginPath();
-        tutCtx.arc(0,0,o.r, o.gap+o.gapSize, o.gap);
-        tutCtx.stroke();
-
-        if(o.forceRadius){
-            tutCtx.globalAlpha = 0.12;
-            tutCtx.strokeStyle = col;
-            tutCtx.lineWidth   = 1;
-            tutCtx.setLineDash([4,8]);
-            tutCtx.beginPath(); tutCtx.arc(0,0,o.forceRadius,0,TAU); tutCtx.stroke();
-            tutCtx.setLineDash([]);
-        }
-
-        // Collision — skip if already passed, in grace, or too small
-        if(!o.passed && o.grace === 0 && o.r > 18 && tutPlayer.invul === 0
-           && Math.abs(tutPlayer.radius - o.r) < 7){
-
-            const pPos = ((tutPlayer.angle % TAU) + TAU) % TAU;
-            const gEnd = ((o.gap % TAU) + TAU) % TAU;
-            const gStart = ((gEnd - o.gapSize) + TAU) % TAU;
-            let inGap = gStart <= gEnd
-                ? pPos>=gStart && pPos<=gEnd
-                : pPos>=gStart || pPos<=gEnd;
-
-            if(o.forceRadius && Math.abs(tutPlayer.radius - o.forceRadius) > 20) inGap = false;
-
-            if(inGap){
-                // Successful pass
-                o.passed = true;
-                tutPlayer.passed++;
-                if(o.forceRadius) tutPlayer.orbitUsed.add(o.forceRadius);
-                playScore();
-                tutCtx.globalAlpha=0.12; tutCtx.fillStyle=col;
-                tutCtx.beginPath(); tutCtx.arc(0,0,o.r,0,TAU); tutCtx.fill();
-            } else {
-                // Hit
-                tutPlayer.invul = 50;
-                o.r = 0; o.passed = false; o.grace = 40;
-                playHit();
-            }
-        }
-    } // end tutRings for loop
-    tutCtx.globalAlpha=1;
-
-    // ── DRAW PLAYER DOT ──
-    const px = Math.cos(tutPlayer.angle)*tutPlayer.radius;
-    const py = Math.sin(tutPlayer.angle)*tutPlayer.radius;
-    const blinking = tutPlayer.invul>0 && tutFrame%4<2;
-    if(!blinking){
-        tutCtx.fillStyle = darkMode ? '#fff' : tutPlayer.color;
-        tutCtx.fillRect(px-5,py-5,10,10);
-        tutCtx.fillStyle = darkMode ? tutPlayer.color : 'rgba(0,0,0,0.2)';
-        tutCtx.globalAlpha = .55; tutCtx.fillRect(px-3,py-3,6,6); tutCtx.globalAlpha=1;
-    }
-
-    // ── ORBIT RADIUS INDICATORS ──
-    if(tutPhase === 2){
-        [CONFIG.INNER_RADIUS, CONFIG.BASE_RADIUS, CONFIG.FAR_RADIUS].forEach((r,i)=>{
-            const isActive = Math.abs(tutPlayer.radius - r) < 8;
-            tutCtx.globalAlpha = isActive ? 0.25 : 0.07;
-            tutCtx.strokeStyle = i===0?'#0070aa':i===1?(tutPlayer.skin?.ringColor||tutPlayer.color):'#660099';
-            tutCtx.lineWidth=1; tutCtx.setLineDash([2,6]);
-            tutCtx.beginPath(); tutCtx.arc(0,0,r,0,TAU); tutCtx.stroke();
-            tutCtx.setLineDash([]);
-        });
-        tutCtx.globalAlpha=1;
-    }
-
-    tutCtx.restore();
-
-    // ── PHASE PROGRESS BAR ──
-    let progress = 0;
-    if(phase.goal==='move')   progress = Math.min(1, tutPlayer.movedAngle / (Math.PI*2));
-    if(phase.goal==='pass')   progress = Math.min(1, tutPlayer.passed / phase.goalCount);
-    if(phase.goal==='orbit')  progress = Math.min(1, tutPlayer.orbitUsed.size / phase.goalCount);
-
-    tutCtx.fillStyle = darkMode ? '#1a1a22' : '#e8e8e0';
-    tutCtx.fillRect(0, 294, 450, 6);
-    tutCtx.fillStyle = tutPlayer.skin?.ringColor || tutPlayer.color;
-    tutCtx.fillRect(0, 294, 450*progress, 6);
-
-    // Hint after 3 seconds
-    tutHintTimer++;
-    if(tutHintTimer === 180) document.getElementById('tut-hint').textContent = phase.hint;
-
-    // ── PHASE COMPLETION ──
-    if(progress >= 1 && !tutComplete){
-        tutComplete = true;
-        setTimeout(()=>{
-            tutPhase++;
-            if(tutPhase >= TUT_PHASES.length){
-                // All phases done
-                tutActive = false;
-                document.getElementById('tutorial-screen').classList.add('hidden');
-                document.getElementById('tutorial-complete').classList.remove('hidden');
-                document.getElementById('tut-complete-skin').textContent =
-                    'OPERATOR: '+(getActiveSkinP1().name);
-            } else {
-                tutComplete = false;
-                loadTutPhase(tutPhase);
-            }
-        }, 600);
-    }
-
-    tutRafId = requestAnimationFrame(tutLoop);
-}
-
-function exitTutorial(){
-    tutActive = false;
-    if(tutRafId) cancelAnimationFrame(tutRafId);
-    document.getElementById('tutorial-screen').classList.add('hidden');
-    document.getElementById('tutorial-complete').classList.add('hidden');
-}
 function loop(now=0){
     if(!gameActive) return;
     _tickPerf(now);
@@ -2082,10 +1791,7 @@ function toggleDarkMode(){
     applyDarkMode();
 }
 applyDarkMode();
-document.getElementById('btn-tutorial').addEventListener('click', startTutorial);
-document.getElementById('btn-tut-skip').addEventListener('click',()=>{ exitTutorial(); showMenu(); });
-document.getElementById('btn-tut-begin').addEventListener('click',()=>{ exitTutorial(); initGame('solo'); });
-document.getElementById('btn-tut-menu').addEventListener('click',()=>{ exitTutorial(); showMenu(); });
+document.getElementById('btn-solo').addEventListener('click',()=>initGame('solo'));
 document.getElementById('btn-duelo').addEventListener('click',()=>initGame('duelo'));
 document.getElementById('btn-shop').addEventListener('click',openShop);
 document.getElementById('btn-shop-back').addEventListener('click',()=>{
