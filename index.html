@@ -1135,6 +1135,11 @@ function addNarrativeEntry(text, type='context'){
     el.className = `narrative-entry ${type}`;
     el.textContent = text;
     box.appendChild(el);
+    setTimeout(()=>{
+        el.style.transition = 'opacity .6s ease';
+        el.style.opacity = '0';
+        setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); }, 600);
+    }, 5000);
 }
 
 function checkNarrativeTriggers(player){
@@ -1691,6 +1696,7 @@ const ACHIEVEMENTS = {
     combo_master: { label:'COMBO MASTER',  desc:'Reach ×10 combo',                  icon:'×' },
     untouchable:  { label:'UNTOUCHABLE',   desc:'Pass 15 rings in a row',            icon:'▣' },
     seriously:    { label:'SERIOUSLY?',    desc:'Die 100 times. Really.',            icon:'💀' },
+    rotor:        { label:'ROTOR',         desc:'???',                               icon:'↯' },
 };
 
 let unlockedAch = _lsGet('pulse_ach', []);
@@ -2217,11 +2223,27 @@ document.getElementById('btn-victory-restart').addEventListener('click',showMenu
 document.getElementById('btn-duel-restart').addEventListener('click',()=>initGame('duelo'));
 document.getElementById('btn-duel-menu').addEventListener('click',showMenu);
 
+const _ROTOR_SEQ = ['KeyA','KeyD','KeyS','KeyS','KeyD','KeyA'];
+let _rotorBuf = [];
+
 window.addEventListener('keydown',e=>{
     keys[e.code]=true;
     if(e.code==='Space') e.preventDefault();
     if(e.code==='Escape'){ if(codeConsole.style.display==='block') resumeLoop(); else pauseGame(); }
     if(e.code==='KeyM') toggleMute();
+
+    // ── ROTOR sequence detector (menu only) ──
+    const inMenu = !document.getElementById('main-menu').classList.contains('hidden');
+    if(inMenu && ['KeyA','KeyD','KeyS'].includes(e.code)){
+        _rotorBuf.push(e.code);
+        if(_rotorBuf.length > _ROTOR_SEQ.length) _rotorBuf.shift();
+        if(_rotorBuf.join(',') === _ROTOR_SEQ.join(',')){ 
+            _rotorBuf = [];
+            unlockAch('rotor');
+        }
+    } else if(!inMenu){
+        _rotorBuf = [];
+    }
 });
 window.addEventListener('keyup',e=>keys[e.code]=false);
 
