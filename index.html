@@ -309,6 +309,23 @@
         .skin-equipped{ font-size:7px; letter-spacing:2px; color:var(--gold); }
         .skin-lock{ position:absolute; top:8px; right:8px; font-size:10px; color:var(--ink3); }
 
+        /* ── UPGRADES ── */
+        .upgrade-card{
+            width:160px; border:1px solid var(--border); padding:20px 14px;
+            display:flex; flex-direction:column; align-items:center; gap:10px;
+            cursor:pointer; transition:all .2s; background:#fff; text-align:center;
+        }
+        .dark-mode .upgrade-card{ background:#050508; }
+        .upgrade-card:hover{ border-color:var(--main); transform:translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,.12); }
+        .upgrade-card-icon{ font-size:24px; }
+        .upgrade-card-name{ font-family:'Orbitron',monospace; font-size:9px; letter-spacing:3px; color:var(--ink); }
+        .upgrade-card-desc{ font-size:7px; letter-spacing:1px; color:var(--ink3); line-height:1.8; }
+        .upgrade-card-type{ font-size:7px; letter-spacing:2px; padding:2px 8px; border:1px solid; margin-top:4px; }
+        .upgrade-type-mobility{ color:#0070aa; border-color:#0070aa; }
+        .upgrade-type-survival{ color:#1a6b1a; border-color:#1a6b1a; }
+        .upgrade-type-score{ color:var(--gold); border-color:var(--gold); }
+        .upgrade-type-style{ color:#660099; border-color:#660099; }
+
         /* ── ACHIEVEMENTS SCREEN ── */
         #ach-screen{ overflow-y:auto; }
         #ach-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; width:560px; }
@@ -515,6 +532,14 @@
                 <div class="skin-equipped hidden" id="p1-skin-eq-void">[ EQUIPPED ]</div>
                 <div class="skin-lock" id="p1-skin-lock-void">🔒</div>
             </div>
+            <div class="skin-card" id="p1-skin-card-yan">
+                <canvas id="p1-skin-preview-yan" width="80" height="80"></canvas>
+                <div class="skin-name" style="background:linear-gradient(90deg,#ff0000,#00ff00,#0000ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">YAN</div>
+                <div class="skin-desc">Pure chromatic signal.<br>All frequencies at once.</div>
+                <div id="p1-skin-action-yan"></div>
+                <div class="skin-equipped hidden" id="p1-skin-eq-yan">[ EQUIPPED ]</div>
+                <div class="skin-lock" id="p1-skin-lock-yan">🔒</div>
+            </div>
         </div>
 
         <!-- P2 grid -->
@@ -543,6 +568,14 @@
                 <div class="skin-equipped hidden" id="p2-skin-eq-void">[ EQUIPPED ]</div>
                 <div class="skin-lock" id="p2-skin-lock-void">🔒</div>
             </div>
+            <div class="skin-card" id="p2-skin-card-yan">
+                <canvas id="p2-skin-preview-yan" width="80" height="80"></canvas>
+                <div class="skin-name" style="background:linear-gradient(90deg,#ff0000,#00ff00,#0000ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">YAN</div>
+                <div class="skin-desc">Pure chromatic signal.<br>All frequencies at once.</div>
+                <div id="p2-skin-action-yan"></div>
+                <div class="skin-equipped hidden" id="p2-skin-eq-yan">[ EQUIPPED ]</div>
+                <div class="skin-lock" id="p2-skin-lock-yan">🔒</div>
+            </div>
         </div>
 
         <button class="btn" id="btn-shop-back" style="width:200px;">← BACK</button>
@@ -563,6 +596,15 @@
         <div id="vs-stats"></div>
         <button class="btn" id="btn-victory-restart" style="border-color:#000;color:#000;margin-top:18px;">CLOSE NEURAL LINK</button>
         <div style="font-size:8px;margin-top:18px;color:#aaa;letter-spacing:3px;">[ PULSE_2_DETECTED_IN_2041 ]</div>
+    </div>
+
+    <!-- UPGRADES -->
+    <div id="upgrade-screen" class="ui-layer hidden">
+        <div style="font-size:8px;letter-spacing:4px;color:var(--ink3);margin-bottom:8px;" id="upgrade-milestone"></div>
+        <h2 style="font-family:'Orbitron',monospace;font-size:16px;letter-spacing:6px;color:var(--ink);margin-bottom:4px;">SIGNAL UPGRADE</h2>
+        <div style="font-size:8px;letter-spacing:3px;color:var(--ink3);margin-bottom:28px;">CHOOSE ONE ENHANCEMENT</div>
+        <div id="upgrade-cards" style="display:flex;gap:16px;"></div>
+        <div id="active-upgrades" style="margin-top:24px;font-size:7px;letter-spacing:2px;color:var(--ink3);text-align:center;min-height:16px;"></div>
     </div>
 
     <!-- DUEL VICTORY -->
@@ -658,6 +700,15 @@ const SKINS = {
         trailColor:'#440077',
         price:    300,
     },
+    yan: {
+        id:       'yan',
+        name:     'YAN',
+        dotColor: '#ff0000',
+        ringColor:'#ff0000',
+        ringStyle:'rgb',
+        trailColor:'#ff0000',
+        price:    500,
+    },
 };
 
 // ── Persistence via localStorage ─────────────────────────────────
@@ -684,7 +735,11 @@ function saveProgress(){
     _lsSet('pulse_best',     allTimeScore);
 }
 
-function awardCredits(score){ neuralCredits += score; saveProgress(); }
+function awardCredits(score, player=null){ 
+    const mult = (player && player._creditMult) ? player._creditMult : 1;
+    neuralCredits += Math.floor(score * mult); 
+    saveProgress(); 
+}
 function getActiveSkinP1(){ return SKINS[equippedSkinP1] || SKINS.castiel; }
 function getActiveSkinP2(){ return SKINS[equippedSkinP2] || SKINS.castiel; }
 
@@ -700,7 +755,7 @@ function switchShopTab(tab){
 }
 
 // ── Shop rendering ────────────────────────────────────────────────
-function drawSkinPreview(canvasId, skin){
+function drawSkinPreview(canvasId, skin, t=0){
     const c = document.getElementById(canvasId);
     if(!c) return;
     const cx = c.getContext('2d');
@@ -712,12 +767,15 @@ function drawSkinPreview(canvasId, skin){
     for(let i=0;i<=80;i+=20){ cx.beginPath(); cx.moveTo(i,0); cx.lineTo(i,80); cx.stroke(); cx.beginPath(); cx.moveTo(0,i); cx.lineTo(80,i); cx.stroke(); }
     cx.lineWidth=1;
 
+    const isRgb = skin.ringStyle==='rgb';
+    const ringCol = isRgb ? `rgb(${Math.round(Math.sin(t*Math.PI/180)*127+128)},${Math.round(Math.sin((t+120)*Math.PI/180)*127+128)},${Math.round(Math.sin((t+240)*Math.PI/180)*127+128)})` : skin.ringColor;
+    const dotCol  = isRgb ? `rgb(${Math.round(Math.sin((t+60)*Math.PI/180)*127+128)},${Math.round(Math.sin((t+180)*Math.PI/180)*127+128)},${Math.round(Math.sin((t+300)*Math.PI/180)*127+128)})` : skin.dotColor;
+
     cx.save();
     cx.translate(40,40);
-    const col = skin.ringColor;
-    cx.strokeStyle = col;
+    cx.strokeStyle = ringCol;
     cx.shadowBlur = 0;
-    cx.lineWidth = skin.ringStyle==='pulse' ? 5 : 4;
+    cx.lineWidth = (skin.ringStyle==='pulse'||isRgb) ? 5+Math.sin(t*0.06)*1.5 : 4;
     if(skin.ringStyle==='dashed') cx.setLineDash([4,5]);
     cx.globalAlpha = 0.9;
     cx.beginPath();
@@ -728,11 +786,21 @@ function drawSkinPreview(canvasId, skin){
     const dx = Math.cos(0.8+TAU*0.75+0.4)*26;
     const dy = Math.sin(0.8+TAU*0.75+0.4)*26;
     cx.globalAlpha=1;
-    cx.fillStyle=skin.dotColor;
+    cx.fillStyle=dotCol;
     cx.fillRect(dx-5,dy-5,10,10);
     cx.fillStyle='rgba(0,0,0,0.2)';
     cx.fillRect(dx-3,dy-3,6,6);
     cx.restore();
+}
+
+let _yanPreviewRaf=null;
+function _animateYanPreviews(){
+    _yanPreviewRaf = requestAnimationFrame(_animateYanPreviews);
+    const shopOpen = document.getElementById('shop-screen').style.display !== 'none';
+    if(!shopOpen){ cancelAnimationFrame(_yanPreviewRaf); _yanPreviewRaf=null; return; }
+    const t = Date.now() * 0.08;
+    drawSkinPreview('p1-skin-preview-yan', SKINS.yan, t);
+    drawSkinPreview('p2-skin-preview-yan', SKINS.yan, t);
 }
 
 function openShop(){
@@ -742,6 +810,7 @@ function openShop(){
         drawSkinPreview(`p1-skin-preview-${s.id}`, s);
         drawSkinPreview(`p2-skin-preview-${s.id}`, s);
     });
+    if(!_yanPreviewRaf) _animateYanPreviews();
     refreshShopUI();
 }
 
@@ -1115,6 +1184,15 @@ const sabWarn     = document.getElementById('sabotage-warn');
 const nearFlash   = document.getElementById('near-miss-flash');
 
 let gameActive=false, frameCount=0, hellMode=false;
+
+// RGB color cycle for YAN skin
+function getRgbColor(offset=0){
+    const t = (frameCount + offset) * 2;
+    const r = Math.round(Math.sin(t * Math.PI/180) * 127 + 128);
+    const g = Math.round(Math.sin((t + 120) * Math.PI/180) * 127 + 128);
+    const b = Math.round(Math.sin((t + 240) * Math.PI/180) * 127 + 128);
+    return `rgb(${r},${g},${b})`;
+}
 let shake=0, isWinning=false, gameMode='solo';
 let rafId=null, paused=false;
 let particles=[];
@@ -1181,8 +1259,8 @@ function triggerNearMiss(x,y,color){
 let _nearMissColor = '#c84000';
 
 // ── COMBO ────────────────────────────────────────────────────────
-function addCombo(){
-    globalCombo++; comboTimer=200;
+function addCombo(player=null){
+    globalCombo++; comboTimer = (player && player._comboExtend) ? 300 : 200;
     if(globalCombo>maxCombo) maxCombo=globalCombo;
     if(globalCombo>=3){ comboDisplay.textContent=`× ${globalCombo} COMBO`; comboDisplay.classList.add('visible'); }
     if(globalCombo%5===0) playComboMilestone(globalCombo);
@@ -1234,6 +1312,7 @@ function showMenu(){
     document.getElementById('victory-screen').classList.add('hidden');
     document.getElementById('shop-screen').style.display='none';
     document.getElementById('ach-screen').classList.add('hidden');
+    document.getElementById('upgrade-screen').classList.add('hidden');
     document.getElementById('pause-overlay').style.display='none';
     document.getElementById('hud-main').classList.add('hidden');
     document.getElementById('duel-score-bar').classList.add('hidden');
@@ -1274,7 +1353,7 @@ class Player {
         // Sabotage rings: very tight gap, fast, no shield
         const gapSize = isSabotage
             ? 0.55 + Math.random()*0.25
-            : tier.gapMin + Math.random()*(tier.gapMax-tier.gapMin);
+            : (tier.gapMin + Math.random()*(tier.gapMax-tier.gapMin)) + (this._magnetActive ? 0.18 : 0);
         const spinning  = isSabotage ? true  : (tier.spinning  && Math.random()<0.25);
         const shrinking = isSabotage ? false : (tier.shrinking && Math.random()<0.30);
         const speedMult = isSabotage ? 1.6   : (type==='slow'?0.55:1);
@@ -1305,9 +1384,10 @@ class Player {
 
     update(tier, opponent=null){
         if(isWinning) return;
-        if(keys[this.ctrl.L]) this.vel-=0.013;
-        if(keys[this.ctrl.R]) this.vel+=0.013;
-        this.vel*=0.84; this.angle+=this.vel;
+        if(keys[this.ctrl.L]) this.vel -= 0.013 * (this._speedMult||1);
+        if(keys[this.ctrl.R]) this.vel += 0.013 * (this._speedMult||1);
+        const friction = Math.max(0.70, Math.min(0.97, 0.84 + (this._frictionBonus||0)));
+        this.vel *= friction; this.angle+=this.vel;
 
         // ── ORBIT CONTROL ──
         // Space/Up  → inner orbit (50)
@@ -1321,7 +1401,8 @@ class Player {
             this.targetRadius = CONFIG.BASE_RADIUS;
         }
 
-        this.radius+=(this.targetRadius-this.radius)*0.18;
+        const orbitLerp = this._snapOrbit ? 1 : 0.18;
+        this.radius+=(this.targetRadius-this.radius)*orbitLerp;
         if(this.invul>0) this.invul--;
         if(nearMissCooldown>0) nearMissCooldown--;
 
@@ -1392,13 +1473,22 @@ class Player {
                             spawnParticles(px,py,'#ffffff',14); playHit();
                         } else {
                             this.lives--; this.streak=0; breakCombo();
-                            this.invul=80; shake=this.lives<=0?80:this.lives===1?60:35;
-                            spawnParticles(px,py,this.color,20); playHit();
-                            if(this.lives<=0){
-                                playDeath();
-                                totalDeaths++;
-                                _lsSet('pulse_deaths', totalDeaths);
-                                if(totalDeaths>=100) unlockAch('seriously');
+                            if(this.lives<=0 && this._secondChance){
+                                this._secondChance=false;
+                                this.lives=1;
+                                this.invul=120; shake=40;
+                                spawnParticles(px,py,'#ffcc00',20);
+                                showScorePopup(px,py-20,'SECOND CHANCE','#ffcc00');
+                                addNarrativeEntry("SYSTEM: 'SECOND CHANCE ACTIVATED — SIGNAL SUSTAINED'", 'system');
+                            } else {
+                                this.invul=80; shake=this.lives<=0?80:this.lives===1?60:35;
+                                spawnParticles(px,py,this.color,20); playHit();
+                                if(this.lives<=0){
+                                    playDeath();
+                                    totalDeaths++;
+                                    _lsSet('pulse_deaths', totalDeaths);
+                                    if(totalDeaths>=100) unlockAch('seriously');
+                                }
                             }
                             checkNarrativeTriggers(this);
                             wrapper.classList.add('critical-mode');
@@ -1417,16 +1507,24 @@ class Player {
                     checkAchievements(this);
 
                     if(o.type==='safe'){
-                        this.shield=true; spawnParticles(px,py,'#ffffff',10);
-                        showScorePopup(px,py-8,'✦ SHIELD','#ffffff'); playShield();
-                        fireNarrative('shield_gain');
+                        if(this.shield){
+                            // Already has shield — convert to +1 life
+                            this.lives = Math.min(this.lives+1, 5);
+                            spawnParticles(px,py,'#ffcc00',18);
+                            showScorePopup(px,py-8,'✦ +1 LIFE','#ffcc00'); playShield();
+                            addNarrativeEntry("SYSTEM: 'SHIELD OVERFLOW — LIFE RESTORED'", 'system');
+                        } else {
+                            this.shield=true; spawnParticles(px,py,'#ffffff',10);
+                            showScorePopup(px,py-8,'✦ SHIELD','#ffffff'); playShield();
+                            fireNarrative('shield_gain');
+                        }
                     } else if(o.type==='slow'){
                         spawnParticles(px,py,'#cc44ff',7);
                         showScorePopup(px,py-8,'SLOW','#cc44ff'); playScore(globalCombo);
                     } else {
                         playScore(globalCombo);
                     }
-                    addCombo();
+                    addCombo(this);
                     const mult=globalCombo>=10?3:globalCombo>=5?2:1;
                     if(mult>1) showScorePopup(px,py-18,`×${mult}`,'#ffcc00');
 
@@ -1439,6 +1537,7 @@ class Player {
                     }
 
                     if(gameMode==='solo' && this.score>=CONFIG.WIN_SCORE) startCollapse();
+                    if(gameMode==='solo' && this.score===nextUpgradeAt && this.score<CONFIG.WIN_SCORE) showUpgradeScreen();
                 }
             } else if(o.r>265){
                 this.obstacles.splice(i,1);
@@ -1467,17 +1566,18 @@ class Player {
         // Record trail point if moving fast enough
         if(speed > 0.004 && !_lowPerf){
             this.trail.push({ x:px, y:py, life:1, color:this.color });
-            if(this.trail.length > 14) this.trail.shift();
+            const maxTrail = this._overcharge ? 24 : 14;
+            if(this.trail.length > maxTrail) this.trail.shift();
         }
 
         // Draw trail
         if(!_lowPerf){
             for(let t=0;t<this.trail.length;t++){
                 const tp = this.trail[t];
-                tp.life -= 0.07;
+                tp.life -= this._overcharge ? 0.04 : 0.07;
                 if(tp.life <= 0){ this.trail.splice(t,1); t--; continue; }
                 const sz = 2 + tp.life * 4;
-                ctx.globalAlpha = tp.life * 0.35;
+                ctx.globalAlpha = tp.life * (this._overcharge ? 0.55 : 0.35);
                 ctx.fillStyle = darkMode ? '#ffffff' : tp.color;
                 ctx.fillRect(tp.x - sz/2, tp.y - sz/2, sz, sz);
             }
@@ -1509,26 +1609,28 @@ class Player {
         // ── RINGS: batch by shadow state to minimize state changes ──
         // Pass 1: all rings (shadow ON if not low-perf)
         this.obstacles.forEach(o=>{
+            const isRgb = this.skin?.ringStyle==='rgb';
             const col = o.isSabotage
                 ? (darkMode ? '#ff0044' : '#cc0022')
                 : o.type==='safe'
                 ? (darkMode ? '#ffffff' : '#1a6b1a')
                 : o.type==='slow'
                 ? (darkMode ? '#cc44ff' : '#7700bb')
-                : (this.skin?.ringColor || this.color);
+                : isRgb ? getRgbColor(o.r * 0.5) : (this.skin?.ringColor || this.color);
 
             ctx.globalAlpha = 0.22+(o.r/265)*0.78;
             ctx.strokeStyle = col;
 
             if(!_lowPerf){
                 ctx.shadowColor = col;
-                ctx.shadowBlur  = o.isSabotage ? 6 : o.type==='safe' ? 5 : 3;
+                ctx.shadowBlur  = o.isSabotage ? 6 : o.type==='safe' ? 5 : (this._neon ? 14 : 3);
             }
 
             const style = this.skin?.ringStyle||'solid';
-            ctx.lineWidth = o.isSabotage ? 7 : o.type==='safe' ? 8 : 5;
+            ctx.lineWidth = o.isSabotage ? 7 : o.type==='safe' ? 8 : (this._neon ? 7 : 5);
             if(style==='dashed' && o.type==='hazard') ctx.setLineDash([6,4]);
-            if(style==='pulse'  && o.type==='hazard') ctx.lineWidth = 4+Math.sin(frameCount*.18)*2;
+            if(style==='pulse'  && o.type==='hazard') ctx.lineWidth = (this._neon?6:4)+Math.sin(frameCount*.18)*2;
+            if(style==='rgb'    && o.type==='hazard') ctx.lineWidth = 5+Math.sin(frameCount*.12)*1.5;
 
             ctx.beginPath();
             ctx.arc(0,0,o.r, o.gap+o.size, o.gap);
@@ -1550,6 +1652,11 @@ class Player {
         }
 
         ctx.shadowBlur=0; ctx.globalAlpha=1;
+
+        // RGB skin: update this.color dynamically each frame
+        if(this.skin?.ringStyle==='rgb'){
+            this.color = getRgbColor();
+        }
 
         if(this.shield){
             if(!_lowPerf){ ctx.shadowColor=this.color; ctx.shadowBlur=8; }
@@ -1651,6 +1758,95 @@ function checkFlawless(player){
 }
 
 // ════════════════════════════════════════════════════════════════════
+// UPGRADE SYSTEM
+// ════════════════════════════════════════════════════════════════════
+const UPGRADES = [
+    // MOBILITY
+    { id:'overclock',    name:'OVERCLOCK',     desc:'Move 25% faster',                     icon:'⚡', type:'mobility',
+      apply: p=>{ p._speedMult=(p._speedMult||1)*1.25; } },
+    { id:'drift',        name:'DRIFT',          desc:'Smoother orbit, less friction',        icon:'〜', type:'mobility',
+      apply: p=>{ p._frictionBonus=(p._frictionBonus||0)-0.06; } },
+    { id:'snap_orbit',   name:'SNAP ORBIT',     desc:'Orbit switch is instant',              icon:'◎', type:'mobility',
+      apply: p=>{ p._snapOrbit=true; } },
+
+    // SURVIVAL
+    { id:'extra_life',   name:'EXTRA LIFE',     desc:'+1 life',                              icon:'▮', type:'survival',
+      apply: p=>{ p.lives=Math.min(p.lives+1,5); } },
+    { id:'second_chance',name:'SECOND CHANCE',  desc:'Survive one hit with 1 life remaining',icon:'✦', type:'survival',
+      apply: p=>{ p._secondChance=true; } },
+    { id:'ghost_shield', name:'GHOST SHIELD',   desc:'Next hit is ignored',                  icon:'◈', type:'survival',
+      apply: p=>{ p.shield=true; } },
+
+    // SCORE
+    { id:'double_credits',name:'DOUBLE CREDITS','desc':'Credits earned x2 this run',         icon:'⬡', type:'score',
+      apply: p=>{ p._creditMult=(p._creditMult||1)*2; } },
+    { id:'combo_extend', name:'COMBO EXTEND',   desc:'Combo timer lasts 50% longer',         icon:'×', type:'score',
+      apply: p=>{ p._comboExtend=true; } },
+    { id:'ring_magnet',  name:'RING MAGNET',    desc:'Gap size increased slightly',          icon:'◉', type:'score',
+      apply: p=>{ p._magnetActive=true; } },
+
+    // STYLE
+    { id:'overcharge',   name:'OVERCHARGE',     desc:'Trail is longer and brighter',         icon:'★', type:'style',
+      apply: p=>{ p._overcharge=true; } },
+    { id:'neon',         name:'NEON',           desc:'Rings glow intensely',                 icon:'◐', type:'style',
+      apply: p=>{ p._neon=true; } },
+];
+
+let activeUpgrades = [];
+let upgradesPicked  = [];
+let nextUpgradeAt   = 25;
+
+function getRandomUpgrades(count=3){
+    const pool = UPGRADES.filter(u => !upgradesPicked.includes(u.id));
+    const shuffled = pool.sort(()=>Math.random()-.5);
+    return shuffled.slice(0, count);
+}
+
+function showUpgradeScreen(){
+    gameActive = false;
+    sdkGameplayStop();
+    const options = getRandomUpgrades(3);
+    document.getElementById('upgrade-milestone').textContent =
+        `RING ${p1.score} — MILESTONE REACHED`;
+    const cards = document.getElementById('upgrade-cards');
+    cards.innerHTML = '';
+    options.forEach(upg=>{
+        const card = document.createElement('div');
+        card.className = 'upgrade-card';
+        card.innerHTML = `
+            <div class="upgrade-card-icon">${upg.icon}</div>
+            <div class="upgrade-card-name">${upg.name}</div>
+            <div class="upgrade-card-desc">${upg.desc}</div>
+            <div class="upgrade-card-type upgrade-type-${upg.type}">${upg.type.toUpperCase()}</div>
+        `;
+        card.addEventListener('click', ()=>pickUpgrade(upg));
+        cards.appendChild(card);
+    });
+    renderActiveUpgrades();
+    document.getElementById('upgrade-screen').classList.remove('hidden');
+}
+
+function pickUpgrade(upg){
+    upgradesPicked.push(upg.id);
+    activeUpgrades.push(upg);
+    upg.apply(p1);
+    nextUpgradeAt += 25;
+    document.getElementById('upgrade-screen').classList.add('hidden');
+    paused=false; gameActive=true;
+    sdkGameplayStart();
+    if(rafId) cancelAnimationFrame(rafId);
+    loop();
+    addNarrativeEntry(`SYSTEM: 'ENHANCEMENT APPLIED — ${upg.name}'`, 'system');
+    renderActiveUpgrades();
+}
+
+function renderActiveUpgrades(){
+    const el = document.getElementById('active-upgrades');
+    if(activeUpgrades.length===0){ el.textContent=''; return; }
+    el.textContent = 'ACTIVE: ' + activeUpgrades.map(u=>u.name).join('  ·  ');
+}
+
+// ════════════════════════════════════════════════════════════════════
 // GAME INIT
 // ════════════════════════════════════════════════════════════════════
 let p1,p2;
@@ -1662,6 +1858,8 @@ function initGame(mode){
     isWinning=false; shake=0; paused=false; particles=[];
     globalCombo=0; comboTimer=0; maxCombo=0; lastTier=null;
     nearMissCooldown=0; firedEvents.clear();
+    activeUpgrades=[]; upgradesPicked=[]; nextUpgradeAt=25;
+    if(p1) p1._hoghogUses=0;
     wrapper.classList.remove('critical-mode'); wrapper.style.transform='';
     comboDisplay.classList.remove('visible');
     diagBox.textContent='';
@@ -1725,7 +1923,9 @@ function triggerVictory(){
     if(sdk) sdk.game.happytime();
     if(p1.score>sessionBest) sessionBest=p1.score;
     if(p1.score>allTimeScore){ allTimeScore=p1.score; }
-    awardCredits(p1.score);
+    const vCreditMult = p1._creditMult || 1;
+    const vCreditsEarned = Math.floor(p1.score * vCreditMult);
+    awardCredits(p1.score, p1);
     checkFlawless(p1);
     playVictory();
 
@@ -1759,7 +1959,8 @@ function triggerVictory(){
         document.getElementById('vs-stats').innerHTML =
             `<div class="vs-stat">RINGS CLEARED: ${p1.score} / ${CONFIG.WIN_SCORE}</div>
              <div class="vs-stat">MAX COMBO: ×${maxCombo}</div>
-             <div class="vs-stat">SESSION BEST: ${sessionBest}</div>`;
+             <div class="vs-stat">SESSION BEST: ${sessionBest}</div>
+             <div class="vs-stat" style="color:var(--gold)">+${vCreditsEarned} ⬡ NEURAL CREDITS${vCreditMult>1?` <span style="color:#ffcc00">(×${vCreditMult})</span>`:''}</div>`;
         document.querySelector('#victory-screen .btn').style.cssText='border-color:#000;color:#000;margin-top:18px;';
         document.querySelector('#victory-screen .btn').textContent='CLOSE NEURAL LINK';
         document.querySelector('#victory-screen div:last-child').style.color='';
@@ -1962,14 +2163,17 @@ function endGame(){
     } else {
         if(p1.score>sessionBest) sessionBest=p1.score;
         if(p1.score>allTimeScore){ allTimeScore=p1.score; }
-        awardCredits(p1.score);
+        const creditMult = p1._creditMult || 1;
+        const creditsEarned = Math.floor(p1.score * creditMult);
+        awardCredits(p1.score, p1);
         requestAdBreak(()=>{
             document.getElementById('game-over').classList.remove('hidden');
             document.getElementById('final-score-display').textContent=String(p1.score).padStart(3,'0');
+            const multLabel = creditMult > 1 ? ` <span style="color:#ffcc00">(×${creditMult})</span>` : '';
             document.getElementById('go-stats').innerHTML=
                 `MAX COMBO: ×${maxCombo} &nbsp;·&nbsp; SESSION BEST: ${sessionBest}<br>
                  DIFFICULTY REACHED: ${lastTier?.name||'INIT'}<br>
-                 <span style="color:var(--gold)">+${p1.score} ⬡ NEURAL CREDITS EARNED</span>`;
+                 <span style="color:var(--gold)">+${creditsEarned} ⬡ NEURAL CREDITS EARNED${multLabel}</span>`;
         });
     }
 }
@@ -2040,13 +2244,21 @@ codeInput.addEventListener('keydown',e=>{
         _fpsSmooth = 60;
         setDiag("SYSTEM: 'MAXIMUM PERFORMANCE LOCKED. NO LIMITS.'");
     }
-    if(val==='SEQUINHO'){
-        _perfLocked = false;
-        _lowPerf = false;
-        _fpsSmooth = 60;
-        setDiag("SYSTEM: 'AUTO PERFORMANCE RESTORED.'");
+    if(val==='HOGHOG'){
+        if(!p1 || !gameActive && !paused){ setDiag("SYSTEM: 'NO ACTIVE SESSION.'"); }
+        else if(gameMode==='duelo'){ setDiag("SYSTEM: 'UPGRADES UNAVAILABLE IN DUEL MODE.'"); }
+        else if((p1._hoghogUses||0) >= 4){ setDiag("SYSTEM: 'HOGHOG LIMIT REACHED. 4/4 USED.'"); }
+        else {
+            p1._hoghogUses = (p1._hoghogUses||0) + 1;
+            const remaining = 4 - p1._hoghogUses;
+            // Close terminal and pause before showing upgrades
+            codeConsole.style.display='none';
+            paused=true; gameActive=false; sdkGameplayStop();
+            showUpgradeScreen();
+            setDiag(`SYSTEM: 'UPGRADE INJECTED. ${remaining} USE${remaining!==1?'S':''} REMAINING.'`);
+        }
     }
-    resumeLoop();
+
 });
 
 // ── TOUCH ────────────────────────────────────────────────────────
