@@ -2,10 +2,15 @@
 
 > **NEURAL EXTRACTION PROTOCOL · 2041**
 
-PULSE is a minimalist arcade reflex game set in a cyberpunk dystopia. You are CASTIEL — a rogue signal trying to escape a collapsing neural network before the system erases you.
+PULSE is a minimalist arcade reflex game set in a cyberpunk dystopia. You are FIZZ — a rogue signal trying to escape a collapsing neural network before the system erases you.
 
 Navigate your operator through an endless stream of expanding rings. Time your orbits. Pass through the gap. Don't get hit. Reach 100 rings and escape.
 
+---
+
+## Play
+
+🎮 **[Play on GitHub Pages](https://syscolor.github.io/PULSE/)**
 
 ---
 
@@ -21,7 +26,7 @@ Navigate your operator through an endless stream of expanding rings. Time your o
 
 ## Gameplay
 
-Rings expand outward from the center of the screen. Each ring has a gap — pass through it to score. Miss the gap and you lose a life. Lose all three lives and the signal dies.
+Rings expand outward from the center of the screen. Each ring has a gap — pass through it to score. Miss the gap and you lose a life. Lose all four lives and the signal dies.
 
 The game escalates automatically through 5 difficulty tiers:
 
@@ -33,6 +38,10 @@ The game escalates automatically through 5 difficulty tiers:
 | `CRITICAL` | Shrinking gaps. Higher pressure. |
 | `HELL_SYNC` | Maximum speed. Minimum mercy. |
 
+Every 25 rings, the game pauses and offers a **Signal Upgrade** to choose from — making each run unique.
+
+As you pass rings, you unknowingly compose a **full piano melody** of 100 notes. It builds, peaks, and resolves by ring 100.
+
 ---
 
 ## Features
@@ -41,18 +50,23 @@ The game escalates automatically through 5 difficulty tiers:
 - **Signal Upgrades** — roguelike upgrade system exclusive to Solo mode
 - **Neural Duel** — local 1v1 split-screen with sabotage mechanics
 - **5 difficulty tiers** that escalate automatically based on score
-- **Skin system** with Neural Store — 3 operators, P1 and P2 equipped independently
+- **Procedural melody** — each ring pass plays the next note of a composed piano piece
+- **Musical peak at ring 40** — signal surge, volume spike, dissonant chord
+- **Visual climax at rings 50–75** — the background pulses with the music
+- **Skin system** with Neural Store — 4 operators + 1 secret, P1 and P2 equipped independently
+- **Robot faces** — each operator has a unique animated eye and body shape
 - **Neural Credits** — earned by playing, spent in the store
 - **Combo multiplier** — chain rings for score bonuses
 - **Shield overflow** — collecting a second shield converts to +1 life
 - **Near-miss detection** — canvas flash + particles when you barely survive
 - **Warning ring** — ghost arc previews incoming ring gap position
 - **Dot trail** — motion trail follows your operator at speed
-- **Achievement system** — 7 unlockable achievements tracked across sessions
+- **Achievement system** — 8 unlockable achievements tracked across sessions
 - **Dark mode** — toggleable via `[ ◑ ]` button, persisted across sessions
 - **Contextual narrative** — dialogue reacts to what happens in real time
-- **Procedural audio** — full soundtrack built with Web Audio API, zero audio files
+- **Procedural soundtrack** — 6 unique ambient tracks (3 menu + 3 battle), no audio files
 - **Terminal / Cheat codes** — secret codes accessible in-game
+- **First-time tutorial** — gentle hints on first play, never shown again
 - **CrazyGames SDK** integrated and compliant
 - **Full mobile support** with touch controls
 - **Responsive scaling** — adapts to any screen size
@@ -61,7 +75,7 @@ The game escalates automatically through 5 difficulty tiers:
 
 ## Signal Upgrades *(Solo only)*
 
-Every 25 rings the game pauses and offers 3 random upgrades to choose from. Each run is different — upgrades never repeat within a run and stack across choices.
+Every 25 rings the game pauses and offers 3 random upgrades to choose from. Each run is different — upgrades never repeat within a run and stack across choices. Use `HOGHOG` in the terminal to trigger an upgrade screen on demand (4 uses per run).
 
 | Category | Upgrade | Effect |
 |---|---|---|
@@ -69,7 +83,7 @@ Every 25 rings the game pauses and offers 3 random upgrades to choose from. Each
 | 〜 Mobility | `DRIFT` | Less friction — smoother orbit |
 | ◎ Mobility | `SNAP ORBIT` | Orbit switch is instant |
 | ▮ Survival | `EXTRA LIFE` | +1 life (max 5) |
-| ✦ Survival | `SECOND CHANCE` | Survive one fatal hit with 1 life |
+| ✦ Survival | `SECOND CHANCE` | Survive one fatal hit |
 | ◈ Survival | `GHOST SHIELD` | Next hit is ignored |
 | ⬡ Score | `DOUBLE CREDITS` | Neural credits earned ×2 this run |
 | × Score | `COMBO EXTEND` | Combo timer lasts 50% longer |
@@ -81,11 +95,13 @@ Every 25 rings the game pauses and offers 3 random upgrades to choose from. Each
 
 ## Operators
 
-| Operator | Color | Ring Style | Price | Notes |
-|---|---|---|---|---|
-| **CASTIEL** | Orange `#c84000` | Solid | Free | Default P1 |
-| **S.I.M.O.N.** | Blue `#0070aa` | Dashed | 150 ⬡ | Default P2 |
-| **VOID** | Purple `#660099` | Pulsing | 300 ⬡ | Unlocks exclusive ending |
+| Operator | Body | Eye | Color | Price | Notes |
+|---|---|---|---|---|---|
+| **FIZZ** | Rounded pill | White bar, blinks | Orange `#c84000` | Free | Default P1, P2 default |
+| **SERAPH** | Sharp rectangle | Cold slit, never blinks | Blue `#0070aa` | 150 ⬡ | |
+| **VOID** | Diamond | Pulsing purple eye | Purple `#660099` | 300 ⬡ | Unlocks exclusive ending |
+| **YAN** | Rectangle | RGB bar | Chromatic | 500 ⬡ | Full RGB rings |
+| **MEQUINTOSHI** | Macintosh 128K | CRT screen with pixel face | Beige `#c8b89a` | Secret | Unlock with terminal code |
 
 Playing as VOID and completing Solo Extraction triggers a unique ending sequence.
 
@@ -114,8 +130,27 @@ Playing as VOID and completing Solo Extraction triggers a unique ending sequence
 | × | `COMBO MASTER` | Reach ×10 combo |
 | ▣ | `UNTOUCHABLE` | Pass 15 rings in a row |
 | 💀 | `SERIOUSLY?` | Die 100 times |
+| ↯ | `ROTOR` | ??? |
 
 All achievements are tracked across sessions via `localStorage`.
+
+---
+
+## Soundtrack
+
+PULSE has 6 fully procedural ambient tracks built with Web Audio API — no audio files, no external dependencies. All music is synthesized in real time.
+
+**Menu (3 tracks, random rotation):**
+- Track 1 — C418 style: long silences, sparse piano, contrabass, metallic bell tones
+- Track 2 — Chamber piano: Cm arpeggios, light kick at 70bpm, crystal bells
+- Track 3 — Abandoned server room: Am piano, high celesta, wind layers
+
+**Battle (3 tracks, random rotation):**
+- Track 1 — HFF Winter: glockenspiel, cutting wind, ice drone, D minor
+- Track 2 — Häggström style: individual Am notes, very long sustain, slow bass
+- Track 3 — Sweden style: Cm arpeggios played one note at a time, cathedral reverb, 7–15s silences between chords
+
+Each ring pass triggers the next note of a 100-note piano melody structured in 4 phrases: intro → development → climax → resolution.
 
 ---
 
@@ -133,6 +168,7 @@ Open the terminal with `[ TERMINAL ]` button or during gameplay. Type a code and
 | `MATRIX` | Particle burst |
 | `ONIX` | Unlock all achievements |
 | `HOGHOG` | Force upgrade screen — 4 uses per run *(Solo only)* |
+| `MESSIAS` | Unlock secret operator |
 | `LISO LISO LISO` | Force maximum performance mode |
 | `SEQUINHO` | Restore auto performance mode |
 
@@ -141,9 +177,9 @@ Open the terminal with `[ TERMINAL ]` button or during gameplay. Type a code and
 ## Tech
 
 - Pure **HTML + CSS + JavaScript** — single file, zero dependencies, zero build tools
-- **Web Audio API** — procedural drone, hit sounds, score tones, victory fanfare
-- **Canvas 2D** — all rendering, particles, rings, dot trail
-- **localStorage** — credits, skins, achievements, dark mode, best score
+- **Web Audio API** — 6 ambient tracks, procedural melody, hit sounds, victory fanfare, all synthesized
+- **Canvas 2D** — all rendering, particles, rings, robot faces, dot trail
+- **localStorage** — credits, skins, achievements, dark mode, best score, deaths, play history
 - **CrazyGames SDK** — gameplayStart/Stop, mute handler, ad integration
 
 ---
